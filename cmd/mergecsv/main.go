@@ -11,13 +11,31 @@ func main() {
 	var header []string
 	var rows [][]string
 
+	readers := make(chan string, len(fileNames))
+	results := make(chan [][]string, len(fileNames))
+
+	for w := 1; w <= 5; w++ {
+		go worker(w, readers, results)
+	}
+
 	for _, fileName := range fileNames {
-		rowData := getRowData(fileName)
+		readers <- fileName
+	}
+	close(readers)
+
+	for i := 1; i <= len(fileNames); i++ {
+		rowData := <-results
 		header = rowData[0]
 		rows = append(rows, rowData[1:]...)
 	}
 
 	makeResultFile(header, rows)
+}
+
+func worker(worker int, readerChan chan string, resultChan chan [][]string) {
+	for r := range readerChan {
+		resultChan <- getRowData(r)
+	}
 }
 
 func getFileNames() []string {
